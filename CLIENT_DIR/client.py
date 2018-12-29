@@ -3,52 +3,61 @@ import json
 import struct
 import os
 
-client_dir='/Users/michelle.zhou/PycharmProjects/FTP/main/CLIENT_DIR/archive'
+class client:
+    def __init__(self):
+        self.client_dir=os.path.dirname(os.path.abspath(__file__))+'/archive'
 
-client=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-client.connect(("127.0.0.1",8084))
+        self.client=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 
-def get(filename):
-    pack_bt = client.recv(4)
-    header_length = struct.unpack('i', pack_bt)[0]
-    header_js = client.recv(header_length)
-    header = json.loads(header_js)
-    totalsize = header.get("file_size")
-    print(totalsize)
+    def start(self):
+        self.client.connect(("127.0.0.1",8084))
 
-    with open('%s/%s' % (client_dir, filename), 'wb') as f:
-        cur_size = 0
-        while cur_size < totalsize:
-            rec = client.recv(1024)
-            f.write(rec)
-            cur_size += len(rec)
+    def get(self,filename):
+        pack_bt = self.client.recv(4)
+        header_length = struct.unpack('i', pack_bt)[0]
+        header_js = self.client.recv(header_length).decode('utf-8')
+        header = json.loads(header_js)
+        totalsize = header.get("file_size")
+        # print(totalsize)
 
-def upload(filename):
-    header={
-        'filename':filename,
-        'file_size':os.path.getsize('%s/%s'%(client_dir,filename)),
-        'md5':'xxdrxxxx'
-    }
-    header_bytes=json.dumps(header).encode('utf-8')
-    header_send=struct.pack('i',len(header_bytes))
-    client.send(header_send)
-    client.send(header_bytes)
+        with open('%s/%s' % (self.client_dir, filename), 'wb') as f:
+            cur_size = 0
+            while cur_size < totalsize:
+                rec = self.client.recv(1024)
+                f.write(rec)
+                cur_size += len(rec)
 
-    with open('%s/%s'%(client_dir,filename),'rb') as f:
-        for line in f:
-            client.send(line)
+    def upload(self,filename):
+        header={
+            'filename':filename,
+            'file_size':os.path.getsize('%s/%s'%(self.client_dir,filename)),
+            'md5':'xxdrxxxx'
+        }
+        header_bytes=json.dumps(header).encode('utf-8')
+        header_send=struct.pack('i',len(header_bytes))
+        self.client.send(header_send)
+        self.client.send(header_bytes)
 
-while True:
-    cmd=input(">>: ") #get test.txt
-    result= cmd.split()[0]
-    filename= cmd.split()[1]
-    client.send(cmd.encode('utf-8'))
-    if result == 'get':
-        get(filename)
-    if result == 'upload':
-        upload(filename)
+        with open('%s/%s'%(self.client_dir,filename),'rb') as f:
+            for line in f:
+                self.client.send(line)
+
+    def run(self):
+        while True:
+            cmd=input(">>: ") #get test.txt
+            result= cmd.split()[0]
+            filename= cmd.split()[1]
+            self.client.send(cmd.encode('utf-8'))
+            if result == 'get':
+                self.get(filename)
+            if result == 'upload':
+                self.upload(filename)
+
+    def close(self):
+        self.client.close()
 
 
-
-client.close()
+s=client()
+s.start()
+s.run()
 
